@@ -40,14 +40,21 @@ data = data.loc[:,input_cols+['SalePrice']].dropna()
 augment(data)
 
 Y = data.loc[:,'SalePrice'].to_numpy()
+
+# only retain "normal" 80%
+low, high = np.quantile(Y, q=[0.1, 0.9])
+ok_indices = (Y > low) & (Y < high)
+Y = Y[ok_indices]
+
 data.drop(['SalePrice'], axis=1, inplace=True)
 
 add_polynomials(data, input_cols)
 
 X_norm = normalize(data).to_numpy()
+X_norm = X_norm[ok_indices,:]
 
 theta = np.random.rand(X_norm.shape[1])
-alpha = 1e-1
+alpha = 0.1
 lmbda = 1e-6
 m = len(X_norm)
 print(f'training with {m} examples')
