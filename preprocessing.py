@@ -3,26 +3,67 @@
 import pandas as pd
 import numpy as np
 
+# TODO: continue with 1stFlrSF (line 361)
 
-input_cols = [
+n_polynomials = 2
+
+ranked_cols = [
+    'MSSubClass',
+    'MSZoning',
+    'Street',
+    'Alley',
+    'LotShape',
+    'LandContour',
+    'Utilities',
+    'LotConfig',
+    'LandSlope',
+    'Neighborhood',
+    'Condition1',
+    'Condition2',
+    'BldgType',
+    'HouseStyle',
+    'RoofStyle',
+    'RoofMatl',
+    'Exterior1st',
+    'Exterior2nd',
+    'MasVnrType',
+    'Foundation',
+    'BsmtCond',
+    'BsmtExposure',
+    'BsmtFinType1',
+    'BsmtFinType2',
+    'Heating',
+    'Electrical',
+]
+
+input_cols = ranked_cols + [
     'LotArea',
     'LotFrontage',
     'OverallQual',
     'OverallCond',
     'YearBuilt',
+    'YearRemodAdd',
     'GrLivArea',
-    'MSZoning',
     'ExterQual',
     'ExterCond',
     'BsmtQual',
     'CentralAir',
+    'MasVnrArea',
+    'BsmtFinSF1',
+    'BsmtFinSF2',
+    'BsmtUnfSF',
+    'TotalBsmtSF',
+    'HeatingQC',
 ]
+
 
 def get_training_data(csv_path):
     data = pd.read_csv(csv_path)
-    data = data.loc[:,input_cols+['SalePrice']].dropna()
+    data = data.loc[:,input_cols+['SalePrice']]
     data = augment_features(data)
-    data = add_polynomials(data, input_cols, 5)
+    data = rank_features(data, ranked_cols, 'SalePrice')
+    # print(data.columns[data.isna().any()].tolist())
+    data = add_polynomials(data, input_cols, n_polynomials)
     Y = data.loc[:,'SalePrice'].to_numpy()
     data.drop(['SalePrice'], axis=1, inplace=True)
     X, Y = filter_normal(data, Y, [0.05, 0.95])
@@ -34,7 +75,8 @@ def get_test_data(csv_path):
     data = pd.read_csv(csv_path)
     id_col = data.loc[:,['Id']].to_numpy()
     data = augment_features(data)
-    data = add_polynomials(data, input_cols, 5)
+    data = rank_features(data, ranked_cols, 'SalePrice')
+    data = add_polynomials(data, input_cols, n_polynomials)
     data = data.loc[:,input_cols]
     data = normalize(test_data.fillna(0)).to_numpy()
     return data, id_col
@@ -49,10 +91,6 @@ def filter_normal(X, Y, quantiles):
 
 
 def augment_features(df):
-    df['MSZoning'] = df['MSZoning'].map(
-        {'A': 0, 'C': 0, 'FV': 0, 'I': -10, 'RH': 10, 'RL': 50, 'RP': 100, 'RM': 25}
-    ).fillna(0)
-
     exterior = {'Ex': 4, 'Gd': 3, 'TA': 2, 'Fa': 1, 'Po': 0}
     df['ExterQual'] = df['ExterQual'].map(exterior).fillna(0)
     df['ExterCond'] = df['ExterCond'].map(exterior).fillna(0)
@@ -62,6 +100,17 @@ def augment_features(df):
     ).fillna(0)
 
     df['CentralAir'] = df['CentralAir'].map({'N': 0, 'Y': 1}).fillna(0)
+
+    df['LotFrontage'] = df['LotFrontage'].fillna(0)
+    df['MasVnrArea'] = df['MasVnrArea'].fillna(0)
+    df['BsmtFinSF1'] = df['BsmtFinSF1'].fillna(0)
+    df['BsmtFinSF2'] = df['BsmtFinSF2'].fillna(0)
+    df['BsmtUnfSF'] = df['BsmtUnfSF'].fillna(0)
+    df['TotalBsmtSF'] = df['TotalBsmtSF'].fillna(0)
+
+    df['HeatingQC'] = df['HeatingQC'].map(
+        {'Ex': 5, 'Gd': 4, 'TA': 3, 'Fa': 2, 'Po': 1}
+    ).fillna(0)
 
     return df
 
@@ -77,10 +126,15 @@ def normalize(arr):
     return (arr - arr.mean()) / arr.std()
 
 
-def rank_feature(df, x_col, y_col):
-    # group df by x_col
-    # calculate average of y_col
-    pass
+def rank_features(df, x_cols, y_col):
+    for x_col in x_cols:
+        aggregate = df.groupby(x_col).aggregate({
+            y_col: 'mean'
+        })
+        mapping = aggregate.to_dict()[y_col]
+        df[x_col] = df[x_col].map(mapping).fillna(0)
+
+    return df
 
 if __name__ == '__main__':
-    data  = pd.read_csv('data/train.csv')
+    df = get_training_data('data/train.csv')

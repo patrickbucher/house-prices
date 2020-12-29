@@ -15,7 +15,7 @@ def main():
     lmbda = 1e-6
     m = len(X)
     print(f'training with {m} examples')
-    iterations = int(1e6)
+    iterations = int(1e3)
     batch = iterations / 10
 
     for i in range(iterations):
@@ -25,7 +25,7 @@ def main():
         theta -= (alpha/m) * (grad + (lmbda/m) * theta.sum())
         cost = 1/(2*m) * (diff ** 2).sum() + (lmbda/(2*m)) * (theta ** 2).sum()
         if i % batch == batch-1:
-            print(f'cost after {i} iterations: {cost:.5f}')
+            print(f'cost after {i+1} iterations: {cost:.5f}')
 
     print(f'weights: {theta}')
 
