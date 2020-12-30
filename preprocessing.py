@@ -5,7 +5,7 @@ import numpy as np
 
 # TODO: continue with 1stFlrSF (line 361)
 
-n_polynomials = 2
+n_polynomials = 1
 
 ranked_cols = [
     'MSSubClass',
@@ -61,24 +61,26 @@ def get_training_data(csv_path):
     data = pd.read_csv(csv_path)
     data = data.loc[:,input_cols+['SalePrice']]
     data = augment_features(data)
-    data = rank_features(data, ranked_cols, 'SalePrice')
+    data, mappings = rank_features(data, ranked_cols, 'SalePrice')
     # print(data.columns[data.isna().any()].tolist())
     data = add_polynomials(data, input_cols, n_polynomials)
     Y = data.loc[:,'SalePrice'].to_numpy()
     data.drop(['SalePrice'], axis=1, inplace=True)
     X, Y = filter_normal(data, Y, [0.05, 0.95])
     X = normalize(X).to_numpy()
-    return X, Y
+    return X, Y, mappings
 
 
-def get_test_data(csv_path):
+def get_test_data(csv_path, mappings):
     data = pd.read_csv(csv_path)
     id_col = data.loc[:,['Id']].to_numpy()
+    data = data.loc[:,input_cols]
     data = augment_features(data)
-    data = rank_features(data, ranked_cols, 'SalePrice')
+    for x_col, mapping in mappings.items():
+        data[x_col] = data[x_col].map(mapping).fillna(0)
     data = add_polynomials(data, input_cols, n_polynomials)
     data = data.loc[:,input_cols]
-    data = normalize(test_data.fillna(0)).to_numpy()
+    data = normalize(data.fillna(0)).to_numpy()
     return data, id_col
 
 
@@ -127,14 +129,18 @@ def normalize(arr):
 
 
 def rank_features(df, x_cols, y_col):
+    mappings = {}
     for x_col in x_cols:
         aggregate = df.groupby(x_col).aggregate({
             y_col: 'mean'
         })
         mapping = aggregate.to_dict()[y_col]
         df[x_col] = df[x_col].map(mapping).fillna(0)
+        mappings[x_col] = mapping
 
-    return df
+    return df, mappings
+
 
 if __name__ == '__main__':
-    df = get_training_data('data/train.csv')
+    training_data, labels, mappings = get_training_data('data/train.csv')
+    test_data, id_col = get_test_data('data/test.csv', mappings)

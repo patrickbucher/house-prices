@@ -8,7 +8,7 @@ from preprocessing import get_test_data
 
 def main():
 
-    X, Y = get_training_data('data/train.csv')
+    X, Y, mappings = get_training_data('data/train.csv')
 
     theta = np.random.rand(X.shape[1])
     alpha = 1e-1
@@ -29,7 +29,7 @@ def main():
 
     print(f'weights: {theta}')
 
-    test_data, id_col = get_test_data('data/test.csv')
+    test_data, id_col = get_test_data('data/test.csv', mappings)
 
     predictions = test_data.dot(theta)
     df = pd.DataFrame({'Id': id_col[:,0], 'SalePrice': predictions})
