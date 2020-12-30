@@ -5,7 +5,7 @@ import numpy as np
 
 # TODO: continue with 1stFlrSF (line 361)
 
-n_polynomials = 5
+n_polynomials = 2
 
 ranked_cols = [
     'MSSubClass',
@@ -66,8 +66,7 @@ def get_training_data(csv_path):
     data = add_polynomials(data, input_cols, n_polynomials)
     Y = data.loc[:,'SalePrice'].to_numpy()
     data.drop(['SalePrice'], axis=1, inplace=True)
-    X, Y = filter_normal(data, Y, [0.25, 0.75])
-    X = normalize(X).to_numpy()
+    X, Y = filter_normal(data, Y, [0.05, 0.95])
     return X, Y, mappings
 
 
@@ -79,7 +78,7 @@ def get_test_data(csv_path, mappings):
     for x_col, mapping in mappings.items():
         data[x_col] = data[x_col].map(mapping).fillna(0)
     data = add_polynomials(data, input_cols, n_polynomials)
-    data = normalize(data.fillna(0)).to_numpy()
+    data = data.fillna(0).to_numpy()
     return data, id_col
 
 

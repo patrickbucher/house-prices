@@ -10,17 +10,20 @@ def main():
 
     X, Y, mappings = get_training_data('data/train.csv')
 
+    X_norm = (X - X.mean()) / X.std()
+    Y_norm = (Y - Y.mean()) / Y.std()
+
     theta = np.random.rand(X.shape[1])
-    alpha = 1e-5
+    alpha = 1e-3
     m = len(X)
     print(f'training with {m} examples')
-    iterations = int(1e6)
+    iterations = int(1e5)
     batch = iterations / 10
 
     for i in range(iterations):
-        pred = X.dot(theta)
-        diff = pred - Y
-        grad = diff.dot(X)
+        pred = X_norm.dot(theta)
+        diff = pred - Y_norm
+        grad = diff.dot(X_norm)
         theta -= (alpha/m) * grad
         cost = 1/(2*m) * (diff ** 2).sum()
         if i % batch == batch-1:
@@ -29,8 +32,10 @@ def main():
     print(f'weights: {theta}')
 
     test_data, id_col = get_test_data('data/test.csv', mappings)
+    test_data_norm = (test_data - test_data.mean()) / test_data.std()
 
-    predictions = test_data.dot(theta)
+    predictions_norm = test_data_norm.dot(theta)
+    predictions = predictions_norm * Y.std() + Y.mean()
     df = pd.DataFrame({'Id': id_col[:,0], 'SalePrice': predictions})
     submission_path = 'data/submission.csv'
     df.to_csv(submission_path, index=False)
