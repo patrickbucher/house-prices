@@ -13,8 +13,11 @@ def main():
     X_norm = (X - X.mean()) / X.std()
     Y_norm = (Y - Y.mean()) / Y.std()
 
+    # TODO: split train/cv data sets
+    # TODO: add regularization
+
     theta = np.random.rand(X.shape[1])
-    alpha = 1e-3
+    alpha = 1e-2
     m = len(X)
     print(f'training with {m} examples')
     iterations = int(1e5)

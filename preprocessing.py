@@ -3,11 +3,9 @@
 import pandas as pd
 import numpy as np
 
-# TODO: continue with 1stFlrSF (line 361)
+n_polynomials = 15
 
-n_polynomials = 2
-
-ranked_cols = [
+category_cols = [
     'MSSubClass',
     'MSZoning',
     'Street',
@@ -34,9 +32,16 @@ ranked_cols = [
     'BsmtFinType2',
     'Heating',
     'Electrical',
+    'Functional',
+    'GarageType',
+    'GarageFinish',
+    'PavedDrive',
+    'MiscFeature',
+    'SaleType',
+    'SaleCondition',
 ]
 
-input_cols = ranked_cols + [
+scalar_cols = [
     'LotArea',
     'LotFrontage',
     'OverallQual',
@@ -54,14 +59,45 @@ input_cols = ranked_cols + [
     'BsmtUnfSF',
     'TotalBsmtSF',
     'HeatingQC',
+    '1stFlrSF',
+    '2ndFlrSF',
+    'LowQualFinSF',
+    'BsmtFullBath',
+    'BsmtHalfBath',
+    'FullBath',
+    'HalfBath',
+    'BedroomAbvGr',
+    'KitchenAbvGr',
+    'KitchenQual',
+    'TotRmsAbvGrd',
+    'Fireplaces',
+    'FireplaceQu',
+    'GarageYrBlt',
+    'GarageCars',
+    'GarageArea',
+    'GarageQual',
+    'GarageCond',
+    'WoodDeckSF',
+    'OpenPorchSF',
+    'EnclosedPorch',
+    '3SsnPorch',
+    'ScreenPorch',
+    'PoolArea',
+    'PoolQC',
+    'Fence',
+    'MiscVal',
+    'MoSold',
+    'YrSold',
 ]
+
+input_cols = category_cols + scalar_cols
 
 
 def get_training_data(csv_path):
     data = pd.read_csv(csv_path)
     data = data.loc[:,input_cols+['SalePrice']]
     data = augment_features(data)
-    data, mappings = rank_features(data, ranked_cols, 'SalePrice')
+    data, mappings = weigh_features(data, category_cols, 'SalePrice')
     # print(data.columns[data.isna().any()].tolist())
     data = add_polynomials(data, input_cols, n_polynomials)
     Y = data.loc[:,'SalePrice'].to_numpy()
@@ -91,34 +127,34 @@ def filter_normal(X, Y, quantiles):
 
 
 def augment_features(df):
-    exterior = {'Ex': 4, 'Gd': 3, 'TA': 2, 'Fa': 1, 'Po': 0}
-    df['ExterQual'] = df['ExterQual'].map(exterior).fillna(0)
-    df['ExterCond'] = df['ExterCond'].map(exterior).fillna(0)
-
+    quality = {'Ex': 4, 'Gd': 3, 'TA': 2, 'Fa': 1, 'Po': 0}
+    quality_na = {'Ex': 5, 'Gd': 4, 'TA': 3, 'Fa': 2, 'Po': 1, 'NA': 0}
+    df['ExterQual'] = df['ExterQual'].map(quality)
+    df['ExterCond'] = df['ExterCond'].map(quality)
     df['BsmtQual'] = df['BsmtQual'].map(
         {'Ex': 5, 'Gd': 4, 'TA': 3, 'Fa': 2, 'Po': 1, 'NA': 0}
-    ).fillna(0)
-
-    df['CentralAir'] = df['CentralAir'].map({'N': 0, 'Y': 1}).fillna(0)
-
-    df['LotFrontage'] = df['LotFrontage'].fillna(0)
-    df['MasVnrArea'] = df['MasVnrArea'].fillna(0)
-    df['BsmtFinSF1'] = df['BsmtFinSF1'].fillna(0)
-    df['BsmtFinSF2'] = df['BsmtFinSF2'].fillna(0)
-    df['BsmtUnfSF'] = df['BsmtUnfSF'].fillna(0)
-    df['TotalBsmtSF'] = df['TotalBsmtSF'].fillna(0)
-
+    )
+    df['CentralAir'] = df['CentralAir'].map({'N': 0, 'Y': 1})
     df['HeatingQC'] = df['HeatingQC'].map(
         {'Ex': 5, 'Gd': 4, 'TA': 3, 'Fa': 2, 'Po': 1}
-    ).fillna(0)
+    )
+    df['KitchenQual'] = df['KitchenQual'].map(quality)
+    df['FireplaceQu'] = df['FireplaceQu'].map(quality_na)
+    df['GarageQual'] = df['GarageQual'].map(quality_na)
+    df['GarageCond'] = df['GarageCond'].map(quality_na)
+    df['PoolQC'] = df['PoolQC'].map({'Ex': 4, 'Gd': 3, 'TA': 2, 'Fa': 1, 'NA': 0})
+    df['Fence'] = df['Fence'].map({'GdPrv': 4, 'MnPrv': 3, 'GdWo': 2, 'MnWw': 1, 'NA': 0})
+
+    for fill_col in scalar_cols:
+        df[fill_col] = df[fill_col].fillna(df[fill_col].mean())
 
     return df
 
 
 def add_polynomials(df, columns, max_grade):
     for col in columns:
-        for p in range(2,max_grade+1):
-            df[f'{col}{p}'] = df[col] ** p
+        for p in range(2, max_grade+1):
+            df[f'{col}^{p}'] = df[col] ** p
     return df
 
 
@@ -126,7 +162,7 @@ def normalize(arr):
     return (arr - arr.mean()) / arr.std()
 
 
-def rank_features(df, x_cols, y_col):
+def weigh_features(df, x_cols, y_col):
     mappings = {}
     for x_col in x_cols:
         aggregate = df.groupby(x_col).aggregate({
